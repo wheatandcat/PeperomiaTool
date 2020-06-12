@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"text/template"
 
@@ -69,12 +70,12 @@ func main() {
 
 	// make a request
 	req := graphql.NewRequest(`
-query Repository($owner: String!, $name: String!, $labels: [String!]) {
+query Repository($owner: String!, $name: String!, $labels: [String!], $milestoneNumber: Int!) {
   repository(owner: $owner, name: $name) {
     id
     name
     url
-    milestone(number: 9) {
+    milestone(number: $milestoneNumber) {
       id
       title
       url
@@ -94,6 +95,8 @@ query Repository($owner: String!, $name: String!, $labels: [String!]) {
 	req.Var("owner", config.GitHub.Owner)
 	req.Var("name", config.GitHub.Repository)
 	req.Var("labels", [1]string{config.GitHub.Label})
+	mn, _ := strconv.Atoi(os.Getenv("MILESTONE_NUMBER"))
+	req.Var("milestoneNumber", mn)
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "bearer "+config.GitHub.Token)
@@ -112,7 +115,7 @@ query Repository($owner: String!, $name: String!, $labels: [String!]) {
 		} else {
 			start += len("## 対応内容")
 		}
-		end := strings.Index(pr.Body, "## その他")
+		end := strings.Index(pr.Body, "## 開発用メモ")
 		if end == -1 {
 			end = len(pr.Body)
 		}
