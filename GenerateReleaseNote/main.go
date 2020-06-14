@@ -102,23 +102,23 @@ func main() {
 	}
 
 	text := `
-# {{ .Repository.Name }} {{ .Repository.Milestone.Title }} リリースノート
+タイトル: {{ .Repository.Name }} {{ .Repository.Milestone.Title }} リリースノート
 
-## GitHub
+# GitHub
 
 [{{ .Repository.Name }}]({{ .Repository.URL }})
 
-## マイルストーン
+# マイルストーン
 
 [{{ .Repository.Milestone.Title }}]({{ .Repository.Milestone.URL }})
 
-## 対応内容
+# 対応内容
 {{range $index, $pr := .Repository.Milestone.PullRequests.Nodes}}
-- [{{ $pr.Title }}](#{{ $pr.Title }}){{end}}
+- [{{ $pr.Title }}](#{{ $pr.ID }}){{end}}
 
-## リリース詳細
-{{range $index, $pr := .Repository.Milestone.PullRequests.Nodes}}<a id="{{ $pr.Title }}"></a>
-### [{{ $pr.Title }}]({{ $pr.URL }})
+# リリース詳細
+{{range $index, $pr := .Repository.Milestone.PullRequests.Nodes}}<a id="{{ $pr.ID }}"></a>
+## [{{ $pr.Title }}]({{ $pr.URL }})
 {{ $pr.Body}}
 {{end}}
 `
