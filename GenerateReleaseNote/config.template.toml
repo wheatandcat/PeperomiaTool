@@ -1,7 +1,7 @@
 [GitHub]
 token = ""
 owner = ""
-repository = ""
+repositories = []
 label = "リリースノート"
 startText = "## 対応内容"
 endText = "## 開発用メモ"
