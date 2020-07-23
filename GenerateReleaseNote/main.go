@@ -19,12 +19,12 @@ type Config struct {
 
 // GitHubConfig GitHub設定ファイルのタイプ
 type GitHubConfig struct {
-	Token      string `toml:"token"`
-	Owner      string `toml:"owner"`
-	Repository string `toml:"repository"`
-	Label      string `toml:"label"`
-	StartText  string `toml:"startText"`
-	EndText    string `toml:"endText"`
+	Token        string   `toml:"token"`
+	Owner        string   `toml:"owner"`
+	Repositories []string `toml:"repositories"`
+	Label        string   `toml:"label"`
+	StartText    string   `toml:"startText"`
+	EndText      string   `toml:"endText"`
 }
 
 // ResposeType Graphqlのタイプ
@@ -68,6 +68,23 @@ type PullRequest struct {
 	URL   string `json:"url"`
 }
 
+// Template Templateのタイプ
+type Template struct {
+	Mileston            string
+	AppMilestoneURL     string
+	App                 []PullRequest
+	BackendMilestoneURL string
+	Backend             []PullRequest
+	WebMilestoneURL     string
+	Web                 []PullRequest
+	HelpMilestoneURL    string
+	Help                []PullRequest
+	ToolMilestoneURL    string
+	Tool                []PullRequest
+	LPMilestoneURL      string
+	LP                  []PullRequest
+}
+
 func main() {
 	var config Config
 	_, err := toml.DecodeFile("./config.toml", &config)
@@ -75,50 +92,97 @@ func main() {
 		log.Fatal(err)
 	}
 
-	mn, err := config.GitHub.getMilestoneNumber(os.Getenv("MILESTONE"))
-	if err != nil {
-		log.Fatal(err)
-	}
+	var tmp Template
 
-	respData, err := config.GitHub.getPullRequest(mn)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	for i, pr := range respData.Repository.Milestone.PullRequests.Nodes {
-		start := strings.Index(pr.Body, config.GitHub.StartText)
-		if start == -1 {
-			start = 0
-		} else {
-			start += len(config.GitHub.StartText)
-		}
-		end := strings.Index(pr.Body, config.GitHub.EndText)
-		if end == -1 {
-			end = len(pr.Body)
+	for _, r := range config.GitHub.Repositories {
+		prs, mu, err := config.GitHub.getPullRequestByMilestone(r)
+		if err != nil {
+			continue
 		}
 
-		body := pr.Body[start:end]
-		respData.Repository.Milestone.PullRequests.Nodes[i].Body = body
+		switch r {
+		case "Peperomia":
+			tmp.App = prs
+			tmp.AppMilestoneURL = mu
+		case "PeperomiaBackend":
+			tmp.Backend = prs
+			tmp.BackendMilestoneURL = mu
+		case "PeperomiaWeb":
+			tmp.Web = prs
+			tmp.WebMilestoneURL = mu
+		case "PeperomiaHelp":
+			tmp.Help = prs
+			tmp.HelpMilestoneURL = mu
+		case "PeperomiaWebSite":
+			tmp.LP = prs
+			tmp.LPMilestoneURL = mu
+		case "PeperomiaTool":
+			tmp.Tool = prs
+			tmp.ToolMilestoneURL = mu
+		}
 	}
+
+	tmp.Mileston = os.Getenv("MILESTONE")
 
 	text := `
-タイトル: {{ .Repository.Name }} {{ .Repository.Milestone.Title }} リリースノート
+タイトル: ペペロミア {{ .Mileston }} リリースノート
 
 # GitHub
 
-[{{ .Repository.Name }}]({{ .Repository.URL }})
+[Peperomia](https://github.com/wheatandcat/Peperomia)
 
 # マイルストーン
 
-[{{ .Repository.Milestone.Title }}]({{ .Repository.Milestone.URL }})
+{{ if .AppMilestoneURL }}[Peperomia {{ .Mileston }}]({{ .AppMilestoneURL }})
+{{ end }}
+{{ if .BackendMilestoneURL }}[PeperomiaBackend {{ .Mileston }}]({{ .BackendMilestoneURL }})
+{{ end }}
+{{ if .WebMilestoneURL }}[PeperomiaWeb {{ .Mileston }}]({{ .WebMilestoneURL }})
+{{ end }}
+{{ if .HelpMilestoneURL }}[PeperomiaHelp {{ .Mileston }}]({{ .HelpMilestoneURL }})
+{{ end }}
+{{ if .LPMilestoneURL }}[Peperomia LPサイト {{ .Mileston }}]({{ .LPMilestoneURL }})
+{{ end }}
+{{ if .ToolMilestoneURL }}[PeperomiaTool {{ .Mileston }}]({{ .ToolMilestoneURL }})
+{{ end }}
 
 # 対応内容
-{{range $index, $pr := .Repository.Milestone.PullRequests.Nodes}}
-- [{{ $pr.Title }}](#{{ $pr.ID }}){{end}}
+{{range $index, $pr := .App}}
+- [[Peperomia]{{ $pr.Title }}](#{{ $pr.ID }}){{end}}
+{{range $index, $pr := .Backend}}
+- [[PeperomiaBackend]{{ $pr.Title }}](#{{ $pr.ID }}){{end}}
+{{range $index, $pr := .Web}}
+- [[PeperomiaWeb]{{ $pr.Title }}](#{{ $pr.ID }}){{end}}
+{{range $index, $pr := .Help}}
+- [[PeperomiaHelp]{{ $pr.Title }}](#{{ $pr.ID }}){{end}}
+{{range $index, $pr := .LP}}
+- [[PeperomiaWebSite]{{ $pr.Title }}](#{{ $pr.ID }}){{end}}
+{{range $index, $pr := .Tool}}
+- [[PeperomiaTool]{{ $pr.Title }}](#{{ $pr.ID }}){{end}}
 
 # リリース詳細
-{{range $index, $pr := .Repository.Milestone.PullRequests.Nodes}}<a id="{{ $pr.ID }}"></a>
-## [{{ $pr.Title }}]({{ $pr.URL }})
+{{range $index, $pr := .App}}<a id="{{ $pr.ID }}"></a>
+## [[Peperomia]{{ $pr.Title }}]({{ $pr.URL }})
+{{ $pr.Body}}
+{{end}}
+{{range $index, $pr := .Backend}}<a id="{{ $pr.ID }}"></a>
+## [[PeperomiaBackend]{{ $pr.Title }}]({{ $pr.URL }})
+{{ $pr.Body}}
+{{end}}
+{{range $index, $pr := .Web}}<a id="{{ $pr.ID }}"></a>
+## [[PeperomiaWeb]{{ $pr.Title }}]({{ $pr.URL }})
+{{ $pr.Body}}
+{{end}}
+{{range $index, $pr := .Help}}<a id="{{ $pr.ID }}"></a>
+## [[PeperomiaHelp]{{ $pr.Title }}]({{ $pr.URL }})
+{{ $pr.Body}}
+{{end}}
+{{range $index, $pr := .Tool}}<a id="{{ $pr.ID }}"></a>
+## [[PeperomiaWebSite]{{ $pr.Title }}]({{ $pr.URL }})
+{{ $pr.Body}}
+{{end}}
+{{range $index, $pr := .LP}}<a id="{{ $pr.ID }}"></a>
+## [[PeperomiaTool]{{ $pr.Title }}]({{ $pr.URL }})
 {{ $pr.Body}}
 {{end}}
 `
@@ -128,12 +192,44 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err := tpl.Execute(os.Stdout, respData); err != nil {
+	if err := tpl.Execute(os.Stdout, tmp); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func (c *GitHubConfig) getMilestoneNumber(mt string) (int, error) {
+func (c *GitHubConfig) getPullRequestByMilestone(repository string) ([]PullRequest, string, error) {
+	var ps []PullRequest
+
+	mn, err := c.getMilestoneNumber(os.Getenv("MILESTONE"), repository)
+	if err != nil {
+		return ps, "", err
+	}
+
+	respData, err := c.getPullRequest(mn, repository)
+	if err != nil {
+		return ps, "", err
+	}
+
+	for i, pr := range respData.Repository.Milestone.PullRequests.Nodes {
+		start := strings.Index(pr.Body, c.StartText)
+		if start == -1 {
+			start = 0
+		} else {
+			start += len(c.StartText)
+		}
+		end := strings.Index(pr.Body, c.EndText)
+		if end == -1 {
+			end = len(pr.Body)
+		}
+
+		body := pr.Body[start:end]
+		respData.Repository.Milestone.PullRequests.Nodes[i].Body = body
+	}
+
+	return respData.Repository.Milestone.PullRequests.Nodes, respData.Repository.Milestone.URL, nil
+}
+
+func (c *GitHubConfig) getMilestoneNumber(mt string, repository string) (int, error) {
 	client := graphql.NewClient("https://api.github.com/graphql")
 	req := graphql.NewRequest(`
 query Repository($owner: String!, $name: String!) {
@@ -150,7 +246,7 @@ query Repository($owner: String!, $name: String!) {
 }
 `)
 	req.Var("owner", c.Owner)
-	req.Var("name", c.Repository)
+	req.Var("name", repository)
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "bearer "+c.Token)
@@ -177,7 +273,7 @@ query Repository($owner: String!, $name: String!) {
 	return mn, nil
 }
 
-func (c *GitHubConfig) getPullRequest(mn int) (ResposeType, error) {
+func (c *GitHubConfig) getPullRequest(mn int, repository string) (ResposeType, error) {
 	client := graphql.NewClient("https://api.github.com/graphql")
 
 	req := graphql.NewRequest(`
@@ -204,7 +300,7 @@ query Repository($owner: String!, $name: String!, $labels: [String!], $milestone
 `)
 
 	req.Var("owner", c.Owner)
-	req.Var("name", c.Repository)
+	req.Var("name", repository)
 	req.Var("labels", [1]string{c.Label})
 	req.Var("milestoneNumber", mn)
 
