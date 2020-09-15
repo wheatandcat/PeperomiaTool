@@ -1,6 +1,6 @@
 
 
-## セットアップ
+## セットアップ & 作り直し
 
 ```
 $ firebase init firestore

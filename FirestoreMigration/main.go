@@ -18,6 +18,7 @@ type DataBase struct {
 	Items       []domain.ItemRecord
 	ItemDetails []domain.ItemDetailRecord
 	Calendars   []domain.CalendarRecord
+	PushToken   []domain.PushTokenRecord
 }
 
 func main() {
@@ -38,12 +39,14 @@ func main() {
 	cs, _ := getCalendars(ctx, client)
 	is, _ := getItems(ctx, client)
 	ids, _ := getItemDetails(ctx, client)
+	pts, _ := getPushTokens(ctx, client)
 
 	var db DataBase
 	db.Users = us
 	db.Items = is
 	db.ItemDetails = ids
 	db.Calendars = cs
+	db.PushToken = pts
 
 	if err := insertUserItem(ctx, client, db); err != nil {
 		log.Fatalln(err)
@@ -51,7 +54,7 @@ func main() {
 }
 
 func insertItemDetail(ctx context.Context, f *firestore.Client, db DataBase, uid string, calendarID string, itemID string) error {
-	var items = f.Collection("version").Doc("1").Collection("users").Doc(uid).Collection("calendars").Doc(calendarID).Collection("items").Doc(itemID)
+	var items = f.Collection("version/1/users").Doc(uid).Collection("calendars").Doc(calendarID).Collection("items").Doc(itemID)
 
 	for _, i := range db.ItemDetails {
 		if uid == i.UID && itemID == i.ItemID {
@@ -65,7 +68,7 @@ func insertItemDetail(ctx context.Context, f *firestore.Client, db DataBase, uid
 }
 
 func insertItem(ctx context.Context, f *firestore.Client, db DataBase, uid string, calendarID string, itemID string) error {
-	var calendar = f.Collection("version").Doc("1").Collection("users").Doc(uid).Collection("calendars").Doc(calendarID)
+	var calendar = f.Collection("version/1/users").Doc(uid).Collection("calendars").Doc(calendarID)
 
 	for _, i := range db.Items {
 		if uid == i.UID && itemID == i.ID {
@@ -82,7 +85,7 @@ func insertItem(ctx context.Context, f *firestore.Client, db DataBase, uid strin
 }
 
 func insertCalendar(ctx context.Context, f *firestore.Client, db DataBase, uid string) error {
-	var user = f.Collection("version").Doc("1").Collection("users").Doc(uid)
+	var user = f.Collection("version/1/users").Doc(uid)
 
 	for _, c := range db.Calendars {
 		if uid == c.UID {
@@ -95,11 +98,17 @@ func insertCalendar(ctx context.Context, f *firestore.Client, db DataBase, uid s
 		}
 	}
 
+	for _, pt := range db.PushToken {
+		if _, err := user.Collection("expoPushTokens").Doc(pt.ID).Set(ctx, pt); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
 func insertUserItem(ctx context.Context, f *firestore.Client, db DataBase) error {
-	var users = f.Collection("version").Doc("1").Collection("users")
+	var users = f.Collection("version/1/users")
 
 	for _, u := range db.Users {
 		if u.UID != "" {
@@ -176,6 +185,23 @@ func getItemDetails(ctx context.Context, f *firestore.Client) ([]domain.ItemDeta
 
 	for _, doc := range docs {
 		var item domain.ItemDetailRecord
+		doc.DataTo(&item)
+		items = append(items, item)
+	}
+
+	return items, nil
+}
+
+func getPushTokens(ctx context.Context, f *firestore.Client) ([]domain.PushTokenRecord, error) {
+	var items []domain.PushTokenRecord
+	matchItem := f.Collection("expoPushTokens").Documents(ctx)
+	docs, err := matchItem.GetAll()
+	if err != nil {
+		return items, err
+	}
+
+	for _, doc := range docs {
+		var item domain.PushTokenRecord
 		doc.DataTo(&item)
 		items = append(items, item)
 	}

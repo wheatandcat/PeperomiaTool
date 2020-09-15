@@ -3,10 +3,21 @@
 ## 新設計
 
 
-一旦、スケジュール周りの以下みたいにマイグレーション
+元の設計
+
+```
+users/:id
+├──calendars/:id
+├──items/:id
+├──itemDetails/:id
+└──expoPushTokens/:id
+```
+
+以下みたいにマイグレーション
 
 ```
 /version/1/users/:id
+    ├──expoPushTokens/:id
     └──calendars/:id
         └──items/:id
             └──itemDetails/:id
