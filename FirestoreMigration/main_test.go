@@ -83,6 +83,15 @@ func getCalendars(ctx context.Context, f *firestore.Client) ([]domain.CalendarRe
 		var item domain.CalendarRecord
 		doc.DataTo(&item)
 		items = append(items, item)
+		matchItem2 := doc.Ref.Collection("items").Documents(ctx)
+		doc2s, err := matchItem2.GetAll()
+		if err != nil {
+			return items, err
+		}
+		for _, doc2 := range doc2s {
+			var item2 domain.ItemRecord
+			doc2.DataTo(&item2)
+		}
 	}
 
 	return items, nil
