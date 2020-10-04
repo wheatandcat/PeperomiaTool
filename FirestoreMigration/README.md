@@ -6,7 +6,7 @@
 元の設計
 
 ```
-users/:id
+├──users/:id
 ├──calendars/:id
 ├──items/:id
 ├──itemDetails/:id
