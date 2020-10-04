@@ -18,7 +18,7 @@ users/:id
 ```
 /version/1/users/:id
     ├──expoPushTokens/:id
-    └──calendars/:id
+    └──calendars/:date
         └──items/:id
             └──itemDetails/:id
 ```
@@ -33,4 +33,10 @@ or
 
 ```
 $ go mod tidy
+```
+
+## マイグレーション実行
+
+```
+$ go run main.go
 ```

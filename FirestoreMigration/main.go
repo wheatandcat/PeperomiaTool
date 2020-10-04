@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"time"
 
 	"cloud.google.com/go/firestore"
 	firebase "firebase.google.com/go"
@@ -21,6 +22,8 @@ type DataBase struct {
 	PushToken   []domain.PushTokenRecord
 }
 
+const location = "Asia/Tokyo"
+
 func main() {
 	ctx := context.Background()
 	sa := option.WithCredentialsFile("serviceAccount.json")
@@ -34,6 +37,10 @@ func main() {
 		log.Fatalln(err)
 	}
 	defer client.Close()
+
+	if err := deleteVersion(ctx, client); err != nil {
+		log.Fatalln(err)
+	}
 
 	us, _ := getUsers(ctx, client)
 	cs, _ := getCalendars(ctx, client)
@@ -53,8 +60,74 @@ func main() {
 	}
 }
 
-func insertItemDetail(ctx context.Context, f *firestore.Client, db DataBase, uid string, calendarID string, itemID string) error {
-	var items = f.Collection("version/1/users").Doc(uid).Collection("calendars").Doc(calendarID).Collection("items").Doc(itemID)
+func deleteVersion(ctx context.Context, f *firestore.Client) error {
+	log.Print("deleteVersion")
+	batch := f.Batch()
+
+	var users = f.Collection("version/1/users").Documents(ctx)
+	userDocs, err := users.GetAll()
+	if err != nil {
+		return err
+	}
+
+	for _, userDoc := range userDocs {
+		log.Print("users")
+
+		var calendars = userDoc.Ref.Collection("calendars").Documents(ctx)
+		calendarDocs, err := calendars.GetAll()
+		if err != nil {
+			return err
+		}
+		for _, calendarDoc := range calendarDocs {
+			log.Print("calendars")
+
+			var items = userDoc.Ref.Collection("items").Documents(ctx)
+			itemDocs, err := items.GetAll()
+			if err != nil {
+				return err
+			}
+			for _, itemDoc := range itemDocs {
+				log.Print("items")
+
+				var itemDetails = itemDoc.Ref.Collection("itemDetails").Documents(ctx)
+				itemDetailDocs, err := itemDetails.GetAll()
+				if err != nil {
+					return err
+				}
+
+				for _, itemDetailDoc := range itemDetailDocs {
+					log.Print("itemDetails")
+
+					batch.Delete(itemDetailDoc.Ref)
+				}
+
+				batch.Delete(itemDoc.Ref)
+
+			}
+
+			batch.Delete(calendarDoc.Ref)
+		}
+		var expoPushTokens = userDoc.Ref.Collection("expoPushTokens").Documents(ctx)
+		expoPushTokenDocs, err := expoPushTokens.GetAll()
+		if err != nil {
+			return err
+		}
+		for _, expoPushTokenDoc := range expoPushTokenDocs {
+			batch.Delete(expoPushTokenDoc.Ref)
+		}
+
+		batch.Delete(userDoc.Ref)
+	}
+
+	log.Print("Commit")
+	_, err = batch.Commit(ctx)
+
+	log.Print("deleteVersion OK!")
+	return err
+}
+
+func insertItemDetail(ctx context.Context, f *firestore.Client, db DataBase, uid string, date string, itemID string) error {
+	var items = f.Collection("version/1/users/" + uid + "/calendars/" + date + "/items").Doc(itemID)
 
 	for _, i := range db.ItemDetails {
 		if uid == i.UID && itemID == i.ItemID {
@@ -67,15 +140,15 @@ func insertItemDetail(ctx context.Context, f *firestore.Client, db DataBase, uid
 	return nil
 }
 
-func insertItem(ctx context.Context, f *firestore.Client, db DataBase, uid string, calendarID string, itemID string) error {
-	var calendar = f.Collection("version/1/users").Doc(uid).Collection("calendars").Doc(calendarID)
+func insertItem(ctx context.Context, f *firestore.Client, db DataBase, uid string, date string, itemID string) error {
+	var calendar = f.Collection("version/1/users/" + uid + "/calendars").Doc(date)
 
 	for _, i := range db.Items {
 		if uid == i.UID && itemID == i.ID {
 			if _, err := calendar.Collection("items").Doc(itemID).Set(ctx, i); err != nil {
 				return err
 			}
-			if err := insertItemDetail(ctx, f, db, uid, calendarID, itemID); err != nil {
+			if err := insertItemDetail(ctx, f, db, uid, date, itemID); err != nil {
 				return err
 			}
 		}
@@ -85,22 +158,27 @@ func insertItem(ctx context.Context, f *firestore.Client, db DataBase, uid strin
 }
 
 func insertCalendar(ctx context.Context, f *firestore.Client, db DataBase, uid string) error {
+	loc, _ := time.LoadLocation(location)
 	var user = f.Collection("version/1/users").Doc(uid)
 
 	for _, c := range db.Calendars {
 		if uid == c.UID {
-			if _, err := user.Collection("calendars").Doc(c.ID).Set(ctx, c); err != nil {
+
+			date := c.Date.In(loc).Format("2006-01-02")
+			if _, err := user.Collection("calendars").Doc(c.Date.In(loc).Format("2006-01-02")).Set(ctx, c); err != nil {
 				return err
 			}
-			if err := insertItem(ctx, f, db, uid, c.ID, c.ItemID); err != nil {
+			if err := insertItem(ctx, f, db, uid, date, c.ItemID); err != nil {
 				return err
 			}
 		}
 	}
 
 	for _, pt := range db.PushToken {
-		if _, err := user.Collection("expoPushTokens").Doc(pt.ID).Set(ctx, pt); err != nil {
-			return err
+		if uid == pt.UID {
+			if _, err := user.Collection("expoPushTokens").Doc(pt.ID).Set(ctx, pt); err != nil {
+				return err
+			}
 		}
 	}
 

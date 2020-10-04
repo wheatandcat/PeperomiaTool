@@ -30,11 +30,12 @@ func TestMain(t *testing.T) {
 
 	us, _ := getUsers2(ctx, f)
 	fmt.Printf("%+v", us)
-	cs, _ := getCalendars(ctx, f)
-	fmt.Printf("%+v", cs)
+
 	is, _ := getItems(ctx, f)
 	fmt.Printf("%+v", is)
 
+	cs, _ := getCalendars(ctx, f)
+	fmt.Printf("%+v", cs)
 }
 
 func getUsers(ctx context.Context, f *firestore.Client) ([]domain.UserRecord, error) {
