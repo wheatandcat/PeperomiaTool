@@ -20,5 +20,8 @@ for (let i = 0; i < dictionary.length; i++) {
     const key = bigrams[j];
     item[key] = true;
   }
-  firestore.collection("version/1/dictionary").add(item);
+  firestore.collection("version/1/dictionary").add({
+    text: dictionary[i].text,
+    bigrams: item,
+  });
 }

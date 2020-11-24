@@ -1,4 +1,4 @@
-# GenerateDictionary
+# 辞書を作成するスクリプト
 
 ## 準備
 
@@ -12,11 +12,8 @@ or
 $ go mod tidy
 ```
 
-## マイグレーション実行
+## 実行
 
 ```
 $ go run main.go
 ```
-
-
-$ npx prettier --write ./CreateTargetIssueFromSpreadsheet.js 

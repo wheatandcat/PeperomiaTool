@@ -1,5 +1,10 @@
-# GenerateDictionary
+# 辞書を作成するスクリプト
 
+## 実行
+
+```
+$ node main.js
+```
 
 ## prettier
 

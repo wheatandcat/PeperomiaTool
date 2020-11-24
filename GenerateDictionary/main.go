@@ -17,7 +17,13 @@ const location = "Asia/Tokyo"
 
 // Dictionary Dictionaryのタイプ
 type Dictionary struct {
+	Text    string   `json:"text"`
 	Bigrams []string `json:"bigrams"`
+}
+
+// Data Dataのタイプ
+type Data struct {
+	Text []string `json:"text"`
 }
 
 func main() {
@@ -34,7 +40,23 @@ func main() {
 	}
 	defer client.Close()
 
+	deleteDictionary(ctx, client)
+
 	list, err := getVersion(ctx, client)
+
+	var data Data
+	request, err := ioutil.ReadFile("./data.json")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	json.Unmarshal(request, &data)
+
+	for _, text := range data.Text {
+		if !contains(list, text) {
+			list = append(list, text)
+		}
+	}
 
 	dictionaryList := []Dictionary{}
 
@@ -45,6 +67,7 @@ func main() {
 		}
 
 		dictionary := Dictionary{
+			Text:    text,
 			Bigrams: bigrams,
 		}
 		dictionaryList = append(dictionaryList, dictionary)
@@ -54,6 +77,24 @@ func main() {
 	file, _ := json.MarshalIndent(dictionaryList, "", " ")
 	_ = ioutil.WriteFile("dictionary.json", file, 0644)
 
+}
+
+func deleteDictionary(ctx context.Context, f *firestore.Client) error {
+	batch := f.Batch()
+
+	var dictionary = f.Collection("version/1/dictionary").Documents(ctx)
+	docs, err := dictionary.GetAll()
+	if err != nil {
+		return err
+	}
+
+	for _, doc := range docs {
+		batch.Delete(doc.Ref)
+	}
+
+	_, err = batch.Commit(ctx)
+
+	return err
 }
 
 func contains(s []string, e string) bool {
