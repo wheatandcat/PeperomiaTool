@@ -1,0 +1,8 @@
+vendor
+serviceAccount.json
+.env
+COMMAND.md
+dump
+.DS_Store
+dictionary.json
+node_modules
